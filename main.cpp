@@ -185,7 +185,9 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 
 	ClearHooks();
 	void *pLoadPoint = LOAD_POINT;
+#ifdef __m68k__
 	static_assert(((unsigned int)LOAD_POINT) >= ((unsigned int)RAM_BASE + s_hooksSize), "structure change");
+#endif
 
 	//wait for the magic number
 	unsigned int last = 0;
