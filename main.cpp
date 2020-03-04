@@ -16,6 +16,16 @@ extern "C" void skip_strip(void);
 
 #define PRINT_ENABLE
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+static unsigned int swap32(unsigned int num)
+{
+	return ((num>>24)&0xff) | // move byte 3 to byte 0
+                    ((num<<8)&0xff0000) | // move byte 1 to byte 2
+                    ((num>>8)&0xff00) | // move byte 2 to byte 1
+                    ((num<<24)&0xff000000); // byte 0 to byte 3
+}
+#endif
+
 static void ClearHooks(void)
 {
 	int *p = (int *)GetHooks();
@@ -164,7 +174,6 @@ extern "C" void trap(ExceptionState *pState)
 	}
 }
 
-
 extern "C" __attribute__ ((noreturn)) void _start(void)
 {
 	skip_strip();
@@ -185,6 +194,7 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 
 	ClearHooks();
 	void *pLoadPoint = LOAD_POINT;
+
 #ifdef __m68k__
 	static_assert(((unsigned int)LOAD_POINT) >= ((unsigned int)RAM_BASE + s_hooksSize), "structure change");
 #endif
@@ -222,9 +232,15 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 		unsigned char c = get_char();
 		*pDest++ = c;
 	}
+	
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN_
+	header.m_size = swap32(header.m_size);
+	header.m_entryPoint = swap32(header.m_entryPoint);
+	header.m_crc = swap32(header.m_crc);
+#endif
 
 #ifdef PRINT_ENABLE
-	put_string("size "); put_dec_short_num(header.m_size, false);
+	put_string("size "); put_hex_num(header.m_size);
 	put_string("\nentry point "); put_hex_num(header.m_entryPoint);
 	put_string("\ncrc "); put_hex_num(header.m_crc);
 #endif
@@ -266,4 +282,3 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 	}
 	while (1);
 }
-
