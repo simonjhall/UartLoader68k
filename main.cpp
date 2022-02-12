@@ -14,7 +14,7 @@
 
 extern "C" void skip_strip(void);
 
-#define PRINT_ENABLE
+//#define PRINT_ENABLE
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 static unsigned int swap32(unsigned int num)
@@ -34,6 +34,7 @@ static void ClearHooks(void)
 		p[count] = 0;
 }
 
+#ifdef __m68k__
 extern "C" void bus_error(ExceptionState *pState)
 {
 	if (GetHooks()->BusError)
@@ -174,6 +175,60 @@ extern "C" void trap(ExceptionState *pState)
 	}
 }
 
+#elif __riscv
+
+extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause)
+{
+	if ((long)mcause < 0)
+	{
+		//interrupt
+		
+#define CALL(x, y)	case x:	\
+						if (GetHooks()->y) \
+							GetHooks()->y(pState); \
+						else ASSERT(0);	\
+						break;	
+
+		switch (mcause & 63)
+		{
+		CALL(1, SuperSoftInt)
+		CALL(3, MachSoftInt)
+		CALL(5, SuperTimerInt)
+		CALL(7, MachTimerInt)
+		CALL(9, SuperExtInt)
+		CALL(11, MachExtInt)
+		
+		default:
+			ASSERT(0);
+		}
+	}
+	else
+	{
+		//exception
+		switch (mcause & 63)
+		{
+		CALL(0, InstAddrMisaligned)
+		CALL(1, InstAddrFault)
+		CALL(2, IllegalInst)
+		CALL(3, Breakpoint)
+		CALL(4, LoadAddrMisaligned)
+		CALL(5, LoadAddrFault)
+		CALL(6, StoreAddrMisaligned)
+		CALL(7, StoreAddrFault)
+		CALL(8, EcallFromU)
+		CALL(9, EcallFromS)
+		CALL(11, EcallFromM)
+		CALL(12, InstPageFault)
+		CALL(13, LoadPageFault)
+		CALL(15, StorePageFault)
+		default:
+			ASSERT(0);
+		}
+	}
+}
+
+#endif
+
 extern "C" __attribute__ ((noreturn)) void _start(void)
 {
 	skip_strip();
@@ -232,8 +287,8 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 		unsigned char c = get_char();
 		*pDest++ = c;
 	}
-	
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN_
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	header.m_size = swap32(header.m_size);
 	header.m_entryPoint = swap32(header.m_entryPoint);
 	header.m_crc = swap32(header.m_crc);
