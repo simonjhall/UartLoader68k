@@ -1,4 +1,4 @@
-PREFIX = riscv32-unknown-linux-gnu-
+PREFIX=~/riscv-linux32/bin/riscv32-unknown-linux-gnu-
 ARGS = -fno-rtti -fno-exceptions -march=rv32im -mabi=ilp32 -O3 -g
 # ARGS = -fno-rtti -fno-exceptions -march=rv64imac -mabi=lp64  -O3 -g
 
