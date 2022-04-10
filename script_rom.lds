@@ -26,7 +26,8 @@ SECTIONS
    /* fpga 68008 */
 /*    . = 0x10000;*/
 	/* redux */
-	. = 0x10000;
+	/* shares bss with stack which starts 32KB higher */
+	. = 0x10000000;
 	
   .bss : { *(.bss) }
 }
