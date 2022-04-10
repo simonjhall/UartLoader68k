@@ -1,0 +1,29 @@
+PREFIX=m68k-linux-gnu-
+ARGS = -fno-rtti -fno-exceptions -mcpu=68040  -O3 -g
+
+ARGS += -I ../shared68k -DSUPERVISOR_MODE
+
+.SECONDARY:
+
+all: uartloader.bin
+
+clean:
+	rm -f *.bin *.o *.elf *.a
+
+%.bin: %.elf
+	$(PREFIX)objcopy -O binary $^ $@
+
+%.o: %.cpp $(HEADERS) Makefile_m68k
+	$(PREFIX)g++ $< -c -o $@ -g -std=c++14 -Wall $(ARGS)
+
+%.o: %.S
+	$(PREFIX)g++ $< -c -o $@ -g
+
+../shared68k/shared.a:
+	$(MAKE) -C ../shared68k -f Makefile_m68k
+
+uartloader.elf: main.o ../shared68k/shared.a
+	$(PREFIX)g++ $^ -o $@ -g -static -nostartfiles -L../shared68k -l:shared.a -Wl,-Tscript_rom.lds
+
+uartloader.bin: uartloader.elf
+	$(PREFIX)objcopy $^ -O binary $@

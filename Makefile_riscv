@@ -14,7 +14,7 @@ clean:
 %.bin: %.elf
 	$(PREFIX)objcopy -O binary $^ $@
 
-%.o: %.cpp $(HEADERS) Makefile
+%.o: %.cpp $(HEADERS) Makefile_riscv
 	$(PREFIX)c++ $< -c -o $@ -g -std=c++14 -Wall $(ARGS)
 
 %.o: %.S

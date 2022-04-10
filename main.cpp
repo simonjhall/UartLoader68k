@@ -182,12 +182,12 @@ extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause
 	if ((long)mcause < 0)
 	{
 		//interrupt
-		
+
 #define CALL(x, y)	case x:	\
 						if (GetHooks()->y) \
 							GetHooks()->y(pState); \
 						else ASSERT(0);	\
-						break;	
+						break;
 
 		switch (mcause & 63)
 		{
@@ -197,7 +197,7 @@ extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause
 		CALL(7, MachTimerInt)
 		CALL(9, SuperExtInt)
 		CALL(11, MachExtInt)
-		
+
 		default:
 			ASSERT(0);
 		}
@@ -249,10 +249,6 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 
 	ClearHooks();
 	void *pLoadPoint = LOAD_POINT;
-
-#ifdef __m68k__
-	static_assert(((unsigned int)LOAD_POINT) >= ((unsigned int)RAM_BASE + s_hooksSize), "structure change");
-#endif
 
 	//wait for the magic number
 	unsigned int last = 0;
