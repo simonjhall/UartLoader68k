@@ -21,7 +21,7 @@ clean:
 	$(PREFIX)c++ $< -c -o $@ -g
 
 ../shared68k/shared.a:
-	$(MAKE) -C ../shared68k
+	$(MAKE) -C ../shared68k -f Makefile_riscv
 
 uartloader.elf: main.o ../shared68k/shared.a
 	$(PREFIX)c++ $^ -o $@ -g -static -nostartfiles -L../shared68k -l:shared.a -Wl,-Tscript_rom.lds
