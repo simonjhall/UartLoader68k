@@ -6,7 +6,7 @@ ARGS += -I ../shared68k -DMACHINE_MODE
 
 .SECONDARY:
 
-all: uartloader.bin
+all: uartloader.bin uartloader.mem
 
 clean:
 	rm -f *.bin *.o *.elf *.a
@@ -28,3 +28,6 @@ uartloader.elf: main.o ../shared68k/shared.a
 
 uartloader.bin: uartloader.elf
 	$(PREFIX)objcopy $^ -O binary $@
+
+uartloader.mem: uartloader.bin
+	hexdump -v -f format $^ > $@
