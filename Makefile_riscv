@@ -1,5 +1,5 @@
 PREFIX=~/riscv-linux32/bin/riscv32-unknown-linux-gnu-
-ARGS = -fno-rtti -fno-exceptions -march=rv32im -mabi=ilp32 -O3 -g
+ARGS = -fno-rtti -fno-exceptions -march=rv32im -mabi=ilp32 -O3 -g -ffunction-sections
 # ARGS = -fno-rtti -fno-exceptions -march=rv64imac -mabi=lp64  -O3 -g
 
 ARGS += -I ../shared68k -DMACHINE_MODE
@@ -24,7 +24,8 @@ clean:
 	$(MAKE) -C ../shared68k -f Makefile_riscv
 
 uartloader.elf: main.o ../shared68k/shared.a
-	$(PREFIX)c++ $^ -o $@ -g -static -nostartfiles -L../shared68k -l:shared.a -Wl,-Tscript_rom.lds
+	$(PREFIX)c++ $^ -o $@ -g -static -nostartfiles -L../shared68k -l:shared.a -Wl,-Tscript_rom.lds -Wl,--gc-sections
+	$(PREFIX)size $@
 
 uartloader.bin: uartloader.elf
 	$(PREFIX)objcopy $^ -O binary $@

@@ -14,7 +14,7 @@
 
 extern "C" void skip_strip(void);
 
-//#define PRINT_ENABLE
+// #define PRINT_ENABLE
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 static unsigned int swap32(unsigned int num)
@@ -179,6 +179,8 @@ extern "C" void trap(ExceptionState *pState)
 
 extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause)
 {
+	bool failure = false;
+	
 	if ((long)mcause < 0)
 	{
 		//interrupt
@@ -186,7 +188,7 @@ extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause
 #define CALL(x, y)	case x:	\
 						if (GetHooks()->y) \
 							GetHooks()->y(pState); \
-						else ASSERT(0);	\
+						else failure = true;	\
 						break;
 
 		switch (mcause & 63)
@@ -199,7 +201,7 @@ extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause
 		CALL(11, MachExtInt)
 
 		default:
-			ASSERT(0);
+			failure = true;
 		}
 	}
 	else
@@ -222,9 +224,11 @@ extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause
 		CALL(13, LoadPageFault)
 		CALL(15, StorePageFault)
 		default:
-			ASSERT(0);
+			failure = true;
 		}
 	}
+	
+	ASSERT(!failure);
 }
 
 #endif
