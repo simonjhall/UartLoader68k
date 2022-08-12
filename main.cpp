@@ -10,11 +10,13 @@
 #include "crc32.h"
 #include "misc_asm.h"
 #include "inter_process.h"
+#include "sdcard_spi.h"
 #include <stdlib.h>
 
 extern "C" void skip_strip(void);
 
 // #define PRINT_ENABLE
+// #define SDCARD_ENABLE
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 static unsigned int swap32(unsigned int num)
@@ -253,6 +255,33 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 
 	ClearHooks();
 	void *pLoadPoint = LOAD_POINT;
+
+#ifdef SDCARD_ENABLE
+#ifdef HAS_SPI
+	SdCard sd;
+	switch (sd.Init())
+	{
+		case SdCard::kErrorNoError:
+			put_string("SD card initialised ok\n");
+			break;
+
+		case SdCard::kErrorInitTimeout:
+			put_string("SD card init timeout\n");
+			break;
+
+		case SdCard::kErrorCmd8Error:
+			put_string("SD card cmd8 error\n");
+			break;
+		
+		case SdCard::kErrorNotSdCard:
+			put_string("not SD card\n");
+			break;
+
+		default:
+			put_string("unknown error\n");
+	}
+#endif
+#endif
 
 	//wait for the magic number
 	unsigned int last = 0;

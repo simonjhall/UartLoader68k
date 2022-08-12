@@ -1,5 +1,5 @@
 PREFIX=~/riscv-linux32/bin/riscv32-unknown-linux-gnu-
-ARGS = -fno-rtti -fno-exceptions -march=rv32im -mabi=ilp32 -O3 -g -ffunction-sections
+ARGS = -fno-rtti -fno-exceptions -march=rv32im -mabi=ilp32 -Os -g -ffunction-sections
 # ARGS = -fno-rtti -fno-exceptions -march=rv64imac -mabi=lp64  -O3 -g
 
 ARGS += -I ../shared68k -DMACHINE_MODE
