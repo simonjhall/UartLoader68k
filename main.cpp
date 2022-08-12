@@ -262,8 +262,37 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 	switch (sd.Init())
 	{
 		case SdCard::kErrorNoError:
+		{
+			unsigned char block[512];
 			put_string("SD card initialised ok\n");
+
+			sd.ReadBlock(block, 0);
+
+			for (int y = 0; y < 32; y++)
+			{
+				for (int x = 0; x < 16; x++)
+				{
+					put_hex_byte(block[x + y * 16]);
+					put_char(' ');
+				}
+				put_char('\n');
+			}
+
+			put_char('\n');
+
+			sd.ReadBlock(block, 1);
+
+			for (int y = 0; y < 32; y++)
+			{
+				for (int x = 0; x < 16; x++)
+				{
+					put_hex_byte(block[x + y * 16]);
+					put_char(' ');
+				}
+				put_char('\n');
+			}
 			break;
+		}
 
 		case SdCard::kErrorInitTimeout:
 			put_string("SD card init timeout\n");
