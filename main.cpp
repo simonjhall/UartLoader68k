@@ -17,6 +17,7 @@ extern "C" void skip_strip(void);
 
 // #define PRINT_ENABLE
 // #define SDCARD_ENABLE
+#define MEM_ZERO_ENABLE
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 static unsigned int swap32(unsigned int num)
@@ -255,6 +256,34 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 
 	ClearHooks();
 	void *pLoadPoint = LOAD_POINT;
+
+#ifdef MEM_ZERO_ENABLE
+	{
+#ifdef PRINT_ENABLE
+		put_string("clearing memory...");
+#endif
+		unsigned int *pClear = (unsigned int *)LOAD_POINT;
+		unsigned int *pClearEnd = (unsigned int *)((char *)RAM_BASE + RAM_SIZE);
+
+		while (pClear != pClearEnd)
+		{
+			pClear[0] = 0;
+			pClear[1] = 0;
+			pClear[2] = 0;
+			pClear[3] = 0;
+
+			pClear[4] = 0;
+			pClear[5] = 0;
+			pClear[6] = 0;
+			pClear[7] = 0;
+
+			pClear += 8;
+		}
+#ifdef PRINT_ENABLE
+		put_string("done\n");
+#endif
+	}
+#endif
 
 #ifdef SDCARD_ENABLE
 #ifdef HAS_SPI
