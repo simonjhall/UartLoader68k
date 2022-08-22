@@ -10,7 +10,9 @@
 #include "crc32.h"
 #include "misc_asm.h"
 #include "inter_process.h"
+
 #include "sdcard_spi.h"
+
 #include <stdlib.h>
 
 extern "C" void skip_strip(void);
@@ -18,6 +20,25 @@ extern "C" void skip_strip(void);
 // #define PRINT_ENABLE
 // #define SDCARD_ENABLE
 #define MEM_ZERO_ENABLE
+
+/* memory layout example:
+- riscv 32-bit
+- 16 MB ebay board
+
+- rom: uart
+- dram:
+0x10000000
+hooks
+0x10000050
+nothing
+0x10000100
+"LOAD_POINT", executable base address after loading
+0x1000b744
+current end of debugger binary (32KB of user mode stack is included in this)
+0x100ffffc
+initial machine mode stack
+*/
+
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 static unsigned int swap32(unsigned int num)

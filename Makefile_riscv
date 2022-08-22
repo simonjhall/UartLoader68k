@@ -24,7 +24,7 @@ clean:
 	$(MAKE) -C ../shared68k -f Makefile_riscv
 
 uartloader.elf: main.o ../shared68k/shared.a
-	$(PREFIX)c++ $^ -o $@ -g -static -nostartfiles -L../shared68k -l:shared.a -Wl,-Tscript_rom.lds -Wl,--gc-sections
+	$(PREFIX)c++ $^ -o $@ -g -static -nostartfiles -L../shared68k -l:shared.a -Wl,-Tscript_rom_riscv.lds -Wl,--gc-sections
 	$(PREFIX)size $@
 
 uartloader.bin: uartloader.elf
