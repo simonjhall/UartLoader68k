@@ -18,8 +18,9 @@
 extern "C" void skip_strip(void);
 
 // #define PRINT_ENABLE
-// #define SDCARD_ENABLE
-#define MEM_ZERO_ENABLE
+#define SDCARD_ENABLE
+#define SDCARD_LOADER
+// #define MEM_ZERO_ENABLE
 
 /* memory layout example:
 - riscv 32-bit
@@ -38,6 +39,9 @@ current end of debugger binary (32KB of user mode stack is included in this)
 0x100ffffc
 initial machine mode stack
 */
+
+static const unsigned int kBinaryHeaderOffset = 0;
+static const unsigned int kBinaryBlockOffset = 1;
 
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -257,6 +261,104 @@ extern "C" void interrupt_exception(ExceptionState *pState, unsigned long mcause
 
 #endif
 
+struct TransferHeader
+{
+	unsigned int m_size;
+	unsigned int m_entryPoint;
+	unsigned int m_crc;
+} header;
+
+union MagicAndHeader{
+	struct {
+		unsigned int magic;
+		TransferHeader header;
+	} top;
+	unsigned char block[512];
+};
+
+static_assert(sizeof(header) == 12, "size change");
+
+void zero_memory(void)
+{
+#ifdef PRINT_ENABLE
+	put_string("clearing memory...");
+#endif
+	unsigned int *pClear = (unsigned int *)LOAD_POINT;
+	unsigned int *pClearEnd = (unsigned int *)((char *)RAM_BASE + RAM_SIZE);
+
+	while (pClear != pClearEnd)
+	{
+		pClear[0] = 0;
+		pClear[1] = 0;
+		pClear[2] = 0;
+		pClear[3] = 0;
+
+		pClear[4] = 0;
+		pClear[5] = 0;
+		pClear[6] = 0;
+		pClear[7] = 0;
+
+		pClear += 8;
+	}
+#ifdef PRINT_ENABLE
+	put_string("done\n");
+#endif
+}
+
+void wait_for_magic_uart(void)
+{
+	//wait for the magic number
+	unsigned int last = 0;
+
+	while (1)
+	{
+		unsigned char c = get_char();
+
+		last = (last << 8) | c;
+
+		if (last == 0xbeefcafe)
+			break;
+	}
+
+#ifdef PRINT_ENABLE
+	put_string("magic number received\n");
+#endif
+}
+
+void load_header_uart(TransferHeader &rHeader)
+{
+	//load the header
+	volatile unsigned char *pDest = (unsigned char *)&rHeader;
+
+	while (pDest < (unsigned char *)(&rHeader + 1))
+	{
+		unsigned char c = get_char();
+		*pDest++ = c;
+	}
+}
+
+void load_binary_uart(unsigned char *pLoadPoint, unsigned int size)
+{
+	unsigned char *pDest = pLoadPoint;
+
+	while (pDest < (pLoadPoint + size))
+	{
+		unsigned char c = get_char();
+		*pDest++ = c;
+	}
+}
+
+void load_binary_sd(SdCard &rSd, unsigned char *pLoadPoint, unsigned int size)
+{
+	//round up to the nearest block
+	size = (size + 511) & ~511;
+
+	unsigned int blocks = size >> 9;
+
+	for (unsigned int count = 0; count < blocks; count++)
+		rSd.ReadBlock(pLoadPoint + count * 512, count + kBinaryBlockOffset);
+}
+
 extern "C" __attribute__ ((noreturn)) void _start(void)
 {
 	skip_strip();
@@ -279,32 +381,11 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 	void *pLoadPoint = LOAD_POINT;
 
 #ifdef MEM_ZERO_ENABLE
-	{
-#ifdef PRINT_ENABLE
-		put_string("clearing memory...");
+	zero_memory();
 #endif
-		unsigned int *pClear = (unsigned int *)LOAD_POINT;
-		unsigned int *pClearEnd = (unsigned int *)((char *)RAM_BASE + RAM_SIZE);
 
-		while (pClear != pClearEnd)
-		{
-			pClear[0] = 0;
-			pClear[1] = 0;
-			pClear[2] = 0;
-			pClear[3] = 0;
-
-			pClear[4] = 0;
-			pClear[5] = 0;
-			pClear[6] = 0;
-			pClear[7] = 0;
-
-			pClear += 8;
-		}
-#ifdef PRINT_ENABLE
-		put_string("done\n");
-#endif
-	}
-#endif
+	MagicAndHeader header_block;
+	bool sd_load = false;
 
 #ifdef SDCARD_ENABLE
 #ifdef HAS_SPI
@@ -313,122 +394,104 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 	{
 		case SdCard::kErrorNoError:
 		{
-			unsigned char block[512];
+#ifdef PRINT_ENABLE
 			put_string("SD card initialised ok\n");
+#endif
 
-			sd.ReadBlock(block, 0);
+#ifdef SDCARD_LOADER
+			sd.ReadBlock(header_block.block, kBinaryHeaderOffset);
 
-			for (int y = 0; y < 32; y++)
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+			if (header_block.top.magic == 0xfecaefbe)
+#else
+			if (header_block.top.magic == 0xbeefcafe)
+#endif
 			{
-				for (int x = 0; x < 16; x++)
-				{
-					put_hex_byte(block[x + y * 16]);
-					put_char(' ');
-				}
-				put_char('\n');
+				sd_load = true;
 			}
-
-			put_char('\n');
-
-			sd.ReadBlock(block, 1);
-
-			for (int y = 0; y < 32; y++)
+			else
 			{
-				for (int x = 0; x < 16; x++)
-				{
-					put_hex_byte(block[x + y * 16]);
-					put_char(' ');
-				}
-				put_char('\n');
+#ifdef PRINT_ENABLE
+				put_string("magic number does not match; using UART\n");
+#endif
 			}
+#endif
+
 			break;
 		}
 
 		case SdCard::kErrorInitTimeout:
+#ifdef PRINT_ENABLE
 			put_string("SD card init timeout\n");
+#endif
 			break;
 
 		case SdCard::kErrorCmd8Error:
+#ifdef PRINT_ENABLE
 			put_string("SD card cmd8 error\n");
+#endif
 			break;
+
 		
 		case SdCard::kErrorNotSdCard:
+#ifdef PRINT_ENABLE
 			put_string("not SD card\n");
+#endif
 			break;
 
 		default:
+#ifdef PRINT_ENABLE
 			put_string("unknown error\n");
-	}
 #endif
-#endif
-
-	//wait for the magic number
-	unsigned int last = 0;
-
-	while (1)
-	{
-		unsigned char c = get_char();
-
-		last = (last << 8) | c;
-
-		if (last == 0xbeefcafe)
 			break;
 	}
-
-#ifdef PRINT_ENABLE
-	put_string("magic number received\n");
+#endif
 #endif
 
-	//load the header
-	struct TransferHeader
+	if (sd_load)
 	{
-		unsigned int m_size;
-		unsigned int m_entryPoint;
-		unsigned int m_crc;
-	} header;
-
-	static_assert(sizeof(header) == 12, "size change");
-	volatile unsigned char *pDest = (unsigned char *)&header;
-
-	while (pDest < (unsigned char *)(&header + 1))
+		//magic and header already loaded
+	}
+	else
 	{
-		unsigned char c = get_char();
-		*pDest++ = c;
+		wait_for_magic_uart();
+		load_header_uart(header_block.top.header);
 	}
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	header.m_size = swap32(header.m_size);
-	header.m_entryPoint = swap32(header.m_entryPoint);
-	header.m_crc = swap32(header.m_crc);
+	header_block.top.header.m_size = swap32(header_block.top.header.m_size);
+	header_block.top.header.m_entryPoint = swap32(header_block.top.header.m_entryPoint);
+	header_block.top.header.m_crc = swap32(header_block.top.header.m_crc);
 #endif
 
 #ifdef PRINT_ENABLE
-	put_string("size "); put_hex_num(header.m_size);
-	put_string("\nentry point "); put_hex_num(header.m_entryPoint);
-	put_string("\ncrc "); put_hex_num(header.m_crc);
+	put_string("size "); put_hex_num(header_block.top.header.m_size);
+	put_string("\nentry point "); put_hex_num(header_block.top.header.m_entryPoint);
+	put_string("\ncrc "); put_hex_num(header_block.top.header.m_crc);
 #endif
 
 	//now load the data
-	pDest = (unsigned char *)pLoadPoint;
-
-	while (pDest < ((unsigned char *)pLoadPoint + header.m_size))
+	if (sd_load)
 	{
-		unsigned char c = get_char();
-		*pDest++ = c;
+		load_binary_sd(sd, (unsigned char *)pLoadPoint, header_block.top.header.m_size);
+	}
+	else
+	{
+		load_binary_uart((unsigned char *)pLoadPoint, header_block.top.header.m_size);
 	}
 
-	unsigned int crc = crc32b((unsigned char *)pLoadPoint, header.m_size);
+	unsigned int crc = crc32b((unsigned char *)pLoadPoint, header_block.top.header.m_size);
 #ifdef PRINT_ENABLE
 	put_string("\ndone transfer\ncrc is ");
 	put_hex_num(crc);
 #endif
 
-	if (crc == header.m_crc)
+	if (crc == header_block.top.header.m_crc)
 	{
 #ifdef PRINT_ENABLE
 		put_string("\nstarting from ram\n");
 #endif
-		void (*pEntry)(void *) = (void (*)(void *))((unsigned int)header.m_entryPoint);
+		void (*pEntry)(void *) = (void (*)(void *))((unsigned int)header_block.top.header.m_entryPoint);
 		pEntry(pLoadPoint);
 
 #ifdef PRINT_ENABLE
@@ -438,9 +501,7 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 	else
 	{
 #ifdef PRINT_ENABLE
-		put_string("\ncrc does not match, ");
-		put_hex_num(header.m_crc);
-		put_char('\n');
+		put_string("\ncrc does not match\n");
 #endif
 	}
 	while (1);
