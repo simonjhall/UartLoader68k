@@ -18,8 +18,8 @@
 extern "C" void skip_strip(void);
 
 // #define PRINT_ENABLE
-#define SDCARD_ENABLE
-#define SDCARD_LOADER
+// #define SDCARD_ENABLE
+// #define SDCARD_LOADER
 // #define MEM_ZERO_ENABLE
 
 /* memory layout example:
@@ -471,11 +471,13 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 #endif
 
 	//now load the data
+#ifdef SDCARD_LOADER
 	if (sd_load)
 	{
 		load_binary_sd(sd, (unsigned char *)pLoadPoint, header_block.top.header.m_size);
 	}
 	else
+#endif
 	{
 		load_binary_uart((unsigned char *)pLoadPoint, header_block.top.header.m_size);
 	}
