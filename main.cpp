@@ -378,6 +378,14 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 #endif
 
 	ClearHooks();
+#if __riscv
+	{
+		Hooks *pHooks = GetHooks();
+		pHooks->EnableICache = &enable_icache;
+		pHooks->InvalidateICache = &invalidate_icache;
+		pHooks->FlushDCache = &flush_dcache;
+	}
+#endif
 	void *pLoadPoint = LOAD_POINT;
 
 #ifdef MEM_ZERO_ENABLE
@@ -490,6 +498,8 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 
 	if (crc == header_block.top.header.m_crc)
 	{
+		invalidate_icache();
+		enable_icache(true);
 #ifdef PRINT_ENABLE
 		put_string("\nstarting from ram\n");
 #endif
