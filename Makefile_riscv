@@ -4,20 +4,23 @@ ARGS = -fno-rtti -fno-exceptions -march=rv32im -mabi=ilp32 -Os -g -ffunction-sec
 
 ARGS += -I ../shared68k -DMACHINE_MODE
 
-.SECONDARY:
+SOURCE_CPP = main.cpp
 
-all: uartloader.bin uartloader.mem
+all: uartloader.bin uartloader.mem uartloader.elf
 
 clean:
-	rm -f *.bin *.o *.elf *.a
+	rm -f *.bin *.o *.elf *.a uart_gitrev.h
 
 %.bin: %.elf
 	$(PREFIX)objcopy -O binary $^ $@
 
-%.o: %.cpp $(HEADERS) Makefile_riscv
+uart_gitrev.h: $(HEADERS) $(SOURCE_ASM) $(SOURCE_CPP)
+	bash gitrev.sh
+
+%.o: %.cpp $(HEADERS) Makefile_riscv uart_gitrev.h
 	$(PREFIX)c++ $< -c -o $@ -g -std=c++14 -Wall $(ARGS)
 
-%.o: %.S
+%.o: %.S Makefile_riscv uart_gitrev.h
 	$(PREFIX)c++ $< -c -o $@ -g
 
 ../shared68k/shared.a:

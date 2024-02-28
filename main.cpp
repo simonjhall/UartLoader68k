@@ -10,14 +10,18 @@
 #include "crc32.h"
 #include "misc_asm.h"
 #include "inter_process.h"
-
 #include "sdcard_spi.h"
+
+#include "uart_gitrev.h"
+#include "shared_gitrev.h"
+
 
 #include <stdlib.h>
 
 extern "C" void skip_strip(void);
 
-// #define PRINT_ENABLE
+#define PRINT_ENABLE
+#define PRINT_GITREV
 // #define SDCARD_ENABLE
 // #define SDCARD_LOADER
 // #define MEM_ZERO_ENABLE
@@ -374,6 +378,12 @@ extern "C" __attribute__ ((noreturn)) void _start(void)
 	put_char(' ');
 	put_string(__TIME__);
 	put_char('\n');
+#ifdef PRINT_GITREV
+	put_hex_num(SHARED_GIT_REV_INT);
+	put_char('\n');
+	put_hex_num(UART_GIT_REV_INT);
+	put_char('\n');
+#endif
 	put_string("rom _start begins\nwaiting for data\n");
 #endif
 
